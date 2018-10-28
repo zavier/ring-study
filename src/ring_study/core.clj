@@ -5,8 +5,8 @@
             [ring.middleware.cookies :as ck]
             [ring.middleware.content-type :as ct]
             [ring.middleware.params :refer [wrap-params]]
-            [ring.middleware.session :as session]
-            [ring.util.response :refer [response]]
+            [ring.middleware.session :refer [wrap-session]]
+            [ring.util.response :refer [response content-type status]]
             [ring.middleware.multipart-params :refer [wrap-multipart-params]])
   (:import (java.io File)))
 
@@ -46,8 +46,18 @@
 
 (defn session-handler [{session :session}]
   (response (str "Hello " (:username session))))
+(defn session-handler-new [{session :session, uri :uri}]
+  (println session)
+  (let [n (session :n 1)]
+    (if (= uri "/")
+      (-> (response (str "You have visited " n " times"))
+          (content-type "text/plain")
+          (assoc-in [:session :n] (inc n)))
+      (-> (response "Page not found")
+          (status 400)))))
+
 (def session-app
-  (session/wrap-session session-handler))
+  (wrap-session session-handler-new))
 
 
 (def upload-app
@@ -56,7 +66,7 @@
       wrap-multipart-params))
 
 (defn start-server []
-  (jetty/run-jetty upload-app {:host "localhost"
+  (jetty/run-jetty session-app {:host "localhost"
                             :port 3001}))
 
 (start-server)
